@@ -5,7 +5,7 @@ A high-performance pipeline for fetching, caching, interpolating, and visualizin
 🌐 **Live Demo**: [OpenSky Flight Density Map on GitHub Pages](https://bar-tolini.github.io/flight-heatmap/)
 
 > [!NOTE]
-> **Primary Component**: The **Google Colab / Jupyter Notebook** ([`opensky_flight_heatmap.ipynb`](./opensky_flight_heatmap.ipynb)) is the **main part of this project**. It contains the comprehensive, end-to-end analytical pipeline with trajectory interpolation, physics-based acoustic ground noise calculations (ECAC Doc 29 / FAA AEDT), interactive time window sliders, and multi-criteria aircraft filtering.
+> **Primary Component**: The **Google Colab / Jupyter Notebook** ([`opensky_flight_heatmap.ipynb`](./opensky_flight_heatmap.ipynb)) is the **main part of this project**. It contains the comprehensive, end-to-end analytical pipeline with trajectory interpolation, simplified acoustic ground noise estimation (inspired by ECAC Doc 29 / FAA AEDT principles), interactive time window sliders, and multi-criteria aircraft filtering.
 >
 > The standalone raster map (`generate_density_heatmap.py` / HTML export) is a **simplified version only**, designed to export lightweight, privacy-preserving, pre-rendered multi-zoom image overlays for quick browser viewing without needing the full notebook environment.
 
@@ -166,7 +166,17 @@ Open `opensky_flight_density_map.html` in any modern web browser to view the int
 
 ## ⚠️ Disclaimer
 
+### General Use & Aviation Safety
 This project and its generated outputs are provided for informational, visualization, and research purposes only. The author assumes no responsibility or liability for the correctness, completeness, or accuracy of the data, nor for any decisions affected by or actions taken based on it. Under no circumstances should this data or visualization be relied upon for flight planning, navigation, operational decision-making, or safety-critical applications.
+
+### Acoustic Noise Modeling & Computation Method
+The ground noise footprint calculations ($L_\text{ground}$ in dB(A)) implemented in the analytical notebook are based on a **simplified engineering approximation model** inspired by standard aviation acoustic principles (such as ECAC Doc 29 / FAA AEDT), but do **not** constitute certified acoustic simulations. Please note the following key limitations and assumptions:
+
+- **Simplified Source Emission Model**: Sound levels at the source ($L_0$) are estimated using generalized airframe categories and typical engine types rather than full, aircraft-specific certified Noise-Power-Distance (NPD) tables or measured acoustic signatures.
+- **Empirical Operational Adjustments**: Engine thrust corrections are heuristically inferred from kinematic vertical climb/descent rates ($\text{m/s}$), and speed corrections are approximated from ADS-B ground speed rather than actual engine pressure ratios (EPR), fan speeds ($N_1$), flap/gear deployment, or true airspeed.
+- **Propagation Assumptions**: Sound propagation assumes unobstructed line-of-sight spherical geometric spreading loss ($20 \log_{10}(d / d_0)$) and a constant linear atmospheric absorption coefficient ($0.005 \cdot d$). It does not model atmospheric stratification, meteorological gradients (wind shear, temperature inversions), humidity profiles, or turbulence scattering.
+- **Terrain & Directivity Omissions**: Calculations assume flat terrain without digital elevation models (DEM), ground reflections/impedance, shielding by buildings or topography, or lateral directivity patterns and airframe installation shielding (such as bank angle effects).
+- **Informational & Comparative Purpose Only**: These computed values are intended solely for relative comparative analysis, trajectory filtering, and qualitative visualization. They **must not** be used for regulatory compliance, official Environmental Impact Assessments (EIA), airport noise contour certification, municipal zoning, or legal proceedings.
 
 ---
 
