@@ -164,6 +164,7 @@ Open `opensky_flight_density_map.html` in any modern web browser to view the int
 
 ---
 
+<a id="disclaimer"></a>
 ## ⚠️ Disclaimer
 
 ### General Use & Aviation Safety
