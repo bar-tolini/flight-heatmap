@@ -1,0 +1,54 @@
+# ==============================================================================
+# Git Ignore Configuration for Flight Heatmap Project
+# ==============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Secrets, API keys, and environment files
+credentials*.json
+!credentials.json.example
+.env
+.env.*
+!.env.example
+
+# Large data files, caches, and intermediate databases
+flight_data_cache/
+*.parquet
+*.csv
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated runtime output maps (keep example_* and timelapse_* maps tracked)
+opensky_flight_heatmap.html
+opensky_flight_density_map.html
+
+# Logs
+*.log
+cron_fetch.log
+
+# Operating System & Editor artifacts
+.DS_Store
+._*
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+
+AGENTS.md
