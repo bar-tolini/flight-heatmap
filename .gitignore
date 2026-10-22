@@ -33,9 +33,10 @@ flight_data_cache/
 *.sqlite
 *.sqlite3
 
-# Generated runtime output maps (keep example_* and timelapse_* maps tracked)
+# Generated runtime output maps (keep example_* maps tracked)
 opensky_flight_heatmap.html
 opensky_flight_density_map.html
+timelapse_flight_heatmap.html
 
 # Logs
 *.log
