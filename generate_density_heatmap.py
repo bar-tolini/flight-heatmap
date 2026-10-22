@@ -43,23 +43,45 @@ DEFAULT_LON_MAX = 9.0478
 # Ground Noise Exposure Single-Select Thresholds (None = No noise filter / All traffic)
 NOISE_CONFIGS = [
     {"id": "none", "label": "All", "val": None, "tag": "All Noise Levels"},
-    {"id": "50",   "label": "50+ dB", "val": 50, "tag": "≥50 dB(A)"},
-    {"id": "60",   "label": "60+ dB", "val": 60, "tag": "≥60 dB(A)"},
-    {"id": "70",   "label": "70+ dB", "val": 70, "tag": "≥70 dB(A)"},
+    {"id": "50", "label": "50+ dB", "val": 50, "tag": "≥50 dB(A)"},
+    {"id": "60", "label": "60+ dB", "val": 60, "tag": "≥60 dB(A)"},
+    {"id": "70", "label": "70+ dB", "val": 70, "tag": "≥70 dB(A)"},
 ]
 
 # Aircraft Group Type Single-Select Filters
 AIRCRAFT_CONFIGS = [
     {"id": "all", "label": "✈️ All", "groups": None},
-    {"id": "airliners", "label": "🛫 Airliners", "groups": ["Commercial Medium Jet", "Commercial Heavy Jet"]},
+    {
+        "id": "airliners",
+        "label": "🛫 Airliners",
+        "groups": ["Commercial Medium Jet", "Commercial Heavy Jet"],
+    },
     {"id": "helis", "label": "🚁 Helis", "groups": ["Helicopter / Rotorcraft"]},
 ]
 
 # Multi-Zoom Adaptive Resolution Tiers
 ZOOM_TIERS = {
-    "low":  {"grid_h": 600,  "grid_w": 800,  "blur": 4.8, "p_norm": 96.8, "gamma": 0.47},  # z8 - z10
-    "med":  {"grid_h": 900,  "grid_w": 1200, "blur": 3.5, "p_norm": 97.2, "gamma": 0.50},  # z11 - z12
-    "high": {"grid_h": 1200, "grid_w": 1600, "blur": 2.4, "p_norm": 97.8, "gamma": 0.54},  # z13 - z14
+    "low": {
+        "grid_h": 600,
+        "grid_w": 800,
+        "blur": 4.8,
+        "p_norm": 96.8,
+        "gamma": 0.47,
+    },  # z8 - z10
+    "med": {
+        "grid_h": 900,
+        "grid_w": 1200,
+        "blur": 3.5,
+        "p_norm": 97.2,
+        "gamma": 0.50,
+    },  # z11 - z12
+    "high": {
+        "grid_h": 1200,
+        "grid_w": 1600,
+        "blur": 2.4,
+        "p_norm": 97.8,
+        "gamma": 0.54,
+    },  # z13 - z14
 }
 
 TRANSPARENT_PIXEL_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAKey=="
@@ -74,7 +96,7 @@ def render_single_zoom_raster(
     lon_min: float,
     lon_max: float,
     lut_256: np.ndarray,
-    zoom_cfg: dict[str, Any]
+    zoom_cfg: dict[str, Any],
 ) -> str:
     """
     Renders an ultra-strong, vibrant RGBA PNG raster for a specific zoom level.
@@ -88,14 +110,15 @@ def render_single_zoom_raster(
     grid_w = zoom_cfg["grid_w"]
     blur_r = zoom_cfg["blur"]
     p_norm = zoom_cfg["p_norm"]
-    gamma  = zoom_cfg["gamma"]
+    gamma = zoom_cfg["gamma"]
 
     # 2D Histogram
     hist, _, _ = np.histogram2d(
-        pts_lat, pts_lon,
+        pts_lat,
+        pts_lon,
         bins=[grid_h, grid_w],
         range=[[lat_min, lat_max], [lon_min, lon_max]],
-        weights=weights
+        weights=weights,
     )
 
     if hist.max() == 0:
@@ -110,7 +133,7 @@ def render_single_zoom_raster(
     norm_raw = (log_hist / m * 255.0).astype(np.uint8)
 
     # Fast Gaussian Blur via PIL
-    img_gray = Image.fromarray(norm_raw[::-1], mode='L')
+    img_gray = Image.fromarray(norm_raw[::-1], mode="L")
     blurred_img = img_gray.filter(ImageFilter.GaussianBlur(radius=blur_r))
     blurred = np.array(blurred_img, dtype=np.float32) / 255.0
 
@@ -130,17 +153,32 @@ def render_single_zoom_raster(
     # Active flight corridors baseline opacity (~46%) up to ~95% opacity
     active = blurred > 0.001
     alpha = np.zeros((grid_h, grid_w), dtype=np.uint8)
-    alpha[active] = np.clip((0.46 + 0.49 * (norm[active] ** 0.70)) * 255.0, 0.0, 242.0).astype(np.uint8)
+    alpha[active] = np.clip(
+        (0.46 + 0.49 * (norm[active] ** 0.70)) * 255.0, 0.0, 242.0
+    ).astype(np.uint8)
     rgba[..., 3] = alpha
 
     # Encode to fast in-memory PNG
-    out_img = Image.fromarray(rgba, mode='RGBA')
+    out_img = Image.fromarray(rgba, mode="RGBA")
     buf = io.BytesIO()
-    out_img.save(buf, format='PNG', optimize=False)
-    b64_str = base64.b64encode(buf.getvalue()).decode('ascii')
+    out_img.save(buf, format="PNG", optimize=False)
+    b64_str = base64.b64encode(buf.getvalue()).decode("ascii")
     buf.close()
 
-    del hist, log_hist, norm_raw, img_gray, blurred_img, blurred, pos, norm, idx, alpha, rgba, out_img
+    del (
+        hist,
+        log_hist,
+        norm_raw,
+        img_gray,
+        blurred_img,
+        blurred,
+        pos,
+        norm,
+        idx,
+        alpha,
+        rgba,
+        out_img,
+    )
     return f"data:image/png;base64,{b64_str}"
 
 
@@ -151,7 +189,7 @@ def build_public_density_map(
     lon_min: float = DEFAULT_LON_MIN,
     lon_max: float = DEFAULT_LON_MAX,
     region_name: str | None = None,
-    output_html_path: str = DEFAULT_OUTPUT_HTML
+    output_html_path: str = DEFAULT_OUTPUT_HTML,
 ) -> folium.Map:
     """
     Builds the standalone, privacy-preserving, multi-zoom adaptive density Folium map.
@@ -168,30 +206,43 @@ def build_public_density_map(
         if not os.path.exists(parquet_file):
             raise FileNotFoundError(f"Input Parquet file not found: {parquet_file}")
         print(f"📂 Loading trajectory points for density map from: {parquet_file}")
-        desired_cols = ['latitude', 'longitude', 'altitude_tier', 'ground_noise_dba', 'aircraft_type_group', 'timestamp']
+        desired_cols = [
+            "latitude",
+            "longitude",
+            "altitude_tier",
+            "ground_noise_dba",
+            "aircraft_type_group",
+            "timestamp",
+        ]
         try:
             df = pd.read_parquet(parquet_file, columns=desired_cols)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"⚠️ Column projection read note: {e}. Attempting full read...")
             df = pd.read_parquet(parquet_file)
-        if 'latitude' in df.columns:
-            df['latitude'] = df['latitude'].astype(np.float32)
-        if 'longitude' in df.columns:
-            df['longitude'] = df['longitude'].astype(np.float32)
-        if 'altitude_tier' in df.columns:
-            df['altitude_tier'] = df['altitude_tier'].astype('category')
-        if 'aircraft_type_group' in df.columns:
-            df['aircraft_type_group'] = df['aircraft_type_group'].astype('category')
+        if "latitude" in df.columns:
+            df["latitude"] = df["latitude"].astype(np.float32)
+        if "longitude" in df.columns:
+            df["longitude"] = df["longitude"].astype(np.float32)
+        if "altitude_tier" in df.columns:
+            df["altitude_tier"] = df["altitude_tier"].astype("category")
+        if "aircraft_type_group" in df.columns:
+            df["aircraft_type_group"] = df["aircraft_type_group"].astype("category")
         loaded_from_file = True
-        print(f"  • Ingested {len(df):,} waypoints ({df.memory_usage(deep=True).sum()/1024/1024:.2f} MB in RAM)")
+        print(
+            f"  • Ingested {len(df):,} waypoints ({df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB in RAM)"
+        )
 
     # Bounding box filter
     mask_bbox = (
-        (df['latitude'] >= lat_min) & (df['latitude'] <= lat_max) &
-        (df['longitude'] >= lon_min) & (df['longitude'] <= lon_max)
+        (df["latitude"] >= lat_min)
+        & (df["latitude"] <= lat_max)
+        & (df["longitude"] >= lon_min)
+        & (df["longitude"] <= lon_max)
     )
     df = df[mask_bbox].copy()
-    print(f"  • Filtered to bbox [{lat_min:.4f}, {lat_max:.4f}] N, [{lon_min:.4f}, {lon_max:.4f}] E: {len(df):,} records")
+    print(
+        f"  • Filtered to bbox [{lat_min:.4f}, {lat_max:.4f}] N, [{lon_min:.4f}, {lon_max:.4f}] E: {len(df):,} records"
+    )
 
     if region_name is None:
         region_name = f"Map Region [{lat_min:.2f}° to {lat_max:.2f}° N, {lon_min:.2f}° to {lon_max:.2f}° E]"
@@ -200,52 +251,50 @@ def build_public_density_map(
     center_lon = (lon_min + lon_max) / 2.0
 
     m = folium.Map(
-        location=[center_lat, center_lon],
-        zoom_start=10,
-        tiles=None,
-        control_scale=True
+        location=[center_lat, center_lon], zoom_start=10, tiles=None, control_scale=True
     )
 
     # 1. Base Map Tile Layers (Zero-Key Low-Contrast Alternatives)
     folium.TileLayer(
-        tiles='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        tiles="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        name='☀️ Muted Grayscale (OSM Mono)',
-        className='tiles-muted-mono',
+        name="☀️ Muted Grayscale (OSM Mono)",
+        className="tiles-muted-mono",
         max_zoom=19,
-        show=True
+        show=True,
     ).add_to(m)
     folium.TileLayer(
-        tiles='https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        tiles="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        name='🌑 Midnight Slate (Dark Canvas)',
-        className='tiles-midnight-dark',
+        name="🌑 Midnight Slate (Dark Canvas)",
+        className="tiles-midnight-dark",
         max_zoom=19,
-        show=False
+        show=False,
     ).add_to(m)
     folium.TileLayer(
-        tiles='https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+        tiles="https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
         attr='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, HOT',
-        name='🌸 Soft Pastel (OSM Humanitarian)',
+        name="🌸 Soft Pastel (OSM Humanitarian)",
         max_zoom=19,
-        show=False
+        show=False,
     ).add_to(m)
     folium.TileLayer(
-        tiles='https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg',
+        tiles="https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-grau/default/current/3857/{z}/{x}/{y}.jpeg",
         attr='&copy; <a href="https://www.swisstopo.admin.ch/">swisstopo</a>',
-        name='🇨🇭 Swisstopo Grau (Federal Grey)',
+        name="🇨🇭 Swisstopo Grau (Federal Grey)",
         max_zoom=18,
-        show=False
+        show=False,
     ).add_to(m)
     folium.TileLayer(
-        tiles='https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-        attr='Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)',
-        name='⛰️ OpenTopoMap (Topographic)',
+        tiles="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        attr="Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)",
+        name="⛰️ OpenTopoMap (Topographic)",
         max_zoom=17,
-        show=False
+        show=False,
     ).add_to(m)
 
-    m.get_root().header.add_child(folium.Element("""
+    m.get_root().header.add_child(
+        folium.Element("""
     <style>
     /* Clean Low-Contrast Map Tile Styling (Zero API Key) */
     .leaflet-tile-pane .tiles-muted-mono {
@@ -255,7 +304,8 @@ def build_public_density_map(
         filter: grayscale(100%) invert(92%) contrast(85%) brightness(95%) !important;
     }
     </style>
-    """))
+    """)
+    )
 
     # 2. Bounding Box Outline
     folium.Rectangle(
@@ -264,7 +314,7 @@ def build_public_density_map(
         weight=2,
         dash_array="5, 5",
         fill=False,
-        tooltip=f"<b>Analysis Region:</b> {region_name}<br>Lat: [{lat_min:.4f}, {lat_max:.4f}]<br>Lon: [{lon_min:.4f}, {lon_max:.4f}]"
+        tooltip=f"<b>Analysis Region:</b> {region_name}<br>Lat: [{lat_min:.4f}, {lat_max:.4f}]<br>Lon: [{lon_min:.4f}, {lon_max:.4f}]",
     ).add_to(m)
 
     tiers_config = [
@@ -273,50 +323,57 @@ def build_public_density_map(
             "key": "0 - 500m (Red)",
             "name": "🔴 0 – 500 m (Surface / Climb)",
             "colors": ["#fca5a5", "#f87171", "#ef4444", "#dc2626", "#800000"],
-            "show": False
+            "show": False,
         },
         {
             "id": "tier_orange",
             "key": "500 - 1000m (Orange)",
             "name": "🟧 500 – 1,000 m (Low Approach / Climb)",
             "colors": ["#fed7aa", "#fb923c", "#f97316", "#ea580c", "#a63000"],
-            "show": False
+            "show": False,
         },
         {
             "id": "tier_amber",
             "key": "1000 - 2000m (Amber)",
             "name": "🟠 1,000 – 2,000 m (Lower TMA)",
             "colors": ["#fef08a", "#facc15", "#eab308", "#d97706", "#9a3412"],
-            "show": False
+            "show": False,
         },
         {
             "id": "tier_yellow",
             "key": "2000 - 3000m (Yellow)",
             "name": "🟡 2,000 – 3,000 m (Intermediate TMA)",
             "colors": ["#fef9c3", "#fde047", "#eab308", "#ca8a04", "#854d0e"],
-            "show": False
+            "show": False,
         },
         {
             "id": "tier_teal",
             "key": "3000 - 5000m (Teal)",
             "name": "🩵 3,000 – 5,000 m (Transitions)",
             "colors": ["#a5f3fc", "#5eead4", "#14b8a6", "#0d9488", "#115e59"],
-            "show": False
+            "show": False,
         },
         {
             "id": "tier_green",
             "key": "5000m+ (Green)",
             "name": "🟢 5,000+ m (Cruising Airways)",
             "colors": ["#bbf7d0", "#86efac", "#22c55e", "#16a34a", "#087f5b"],
-            "show": False
+            "show": False,
         },
         {
             "id": "tier_combined",
             "key": None,  # All altitudes combined
             "name": "🔥 All-Altitudes Combined Density",
-            "colors": ['#bfdbfe', '#38bdf8', '#34d399', '#fbbf24', '#f97316', '#ef4444'],
-            "show": True
-        }
+            "colors": [
+                "#bfdbfe",
+                "#38bdf8",
+                "#34d399",
+                "#fbbf24",
+                "#f97316",
+                "#ef4444",
+            ],
+            "show": True,
+        },
     ]
 
     bounds = [[lat_min, lon_min], [lat_max, lon_max]]
@@ -329,7 +386,9 @@ def build_public_density_map(
 
     # Multi-dimensional rasters store:
     # zoom_rasters_json[layer_id][f"{noise_id}_{aircraft_group}"][zoom_tier] = b64_png_uri
-    zoom_rasters_json: dict[str, dict[str, dict[str, str]]] = {cfg["id"]: {} for cfg in tiers_config}
+    zoom_rasters_json: dict[str, dict[str, dict[str, str]]] = {
+        cfg["id"]: {} for cfg in tiers_config
+    }
     filter_counts_json: dict[str, int] = {}
     overlay_var_names: dict[str, str] = {}
 
@@ -343,18 +402,18 @@ def build_public_density_map(
         noise_id = noise_cfg["id"]
         noise_val = noise_cfg["val"]
 
-        if noise_val is None or 'ground_noise_dba' not in df.columns:
+        if noise_val is None or "ground_noise_dba" not in df.columns:
             df_noise = df
         else:
-            df_noise = df[df['ground_noise_dba'] >= noise_val]
+            df_noise = df[df["ground_noise_dba"] >= noise_val]
 
         for ac_cfg in AIRCRAFT_CONFIGS:
             ac_id = ac_cfg["id"]
             ac_groups = ac_cfg["groups"]
-            if ac_groups is None or 'aircraft_type_group' not in df.columns:
+            if ac_groups is None or "aircraft_type_group" not in df.columns:
                 df_curr = df_noise
             else:
-                df_curr = df_noise[df_noise['aircraft_type_group'].isin(ac_groups)]
+                df_curr = df_noise[df_noise["aircraft_type_group"].isin(ac_groups)]
 
             filter_key = f"{noise_id}_{ac_id}"
             filter_counts_json[filter_key] = len(df_curr)
@@ -367,27 +426,41 @@ def build_public_density_map(
                 if tkey is None:
                     tier_pts = df_curr
                 else:
-                    tier_pts = df_curr[df_curr['altitude_tier'] == tkey] if 'altitude_tier' in df_curr.columns else pd.DataFrame()
+                    tier_pts = (
+                        df_curr[df_curr["altitude_tier"] == tkey]
+                        if "altitude_tier" in df_curr.columns
+                        else pd.DataFrame()
+                    )
 
                 if tier_pts.empty:
-                    zoom_rasters_json[lid][filter_key] = {ztier: "" for ztier in ZOOM_TIERS}
+                    zoom_rasters_json[lid][filter_key] = {
+                        ztier: "" for ztier in ZOOM_TIERS
+                    }
                 else:
-                    lats = tier_pts['latitude'].to_numpy(dtype=np.float32, copy=False)
-                    lons = tier_pts['longitude'].to_numpy(dtype=np.float32, copy=False)
+                    lats = tier_pts["latitude"].to_numpy(dtype=np.float32, copy=False)
+                    lons = tier_pts["longitude"].to_numpy(dtype=np.float32, copy=False)
 
                     tier_zoom_dict: dict[str, str] = {}
                     for ztier_name, z_cfg in ZOOM_TIERS.items():
                         uri = render_single_zoom_raster(
-                            lats, lons, None,
-                            lat_min, lat_max, lon_min, lon_max,
-                            luts[lid], z_cfg
+                            lats,
+                            lons,
+                            None,
+                            lat_min,
+                            lat_max,
+                            lon_min,
+                            lon_max,
+                            luts[lid],
+                            z_cfg,
                         )
                         tier_zoom_dict[ztier_name] = uri
 
                     zoom_rasters_json[lid][filter_key] = tier_zoom_dict
 
             noise_desc = f"Noise: {noise_cfg['label']}"
-            print(f"  ✓ Processed Filter [{noise_desc} ∩ Aircraft: {ac_cfg['label']}]: {len(df_curr):,} waypoints")
+            print(
+                f"  ✓ Processed Filter [{noise_desc} ∩ Aircraft: {ac_cfg['label']}]: {len(df_curr):,} waypoints"
+            )
 
     # Add ImageOverlays to Folium map with default initial state (Noise: none (All), Aircraft: all, Zoom: low)
     DEFAULT_INITIAL_FILTER = "none_all"
@@ -395,18 +468,41 @@ def build_public_density_map(
 
     for cfg in tiers_config:
         lid = cfg["id"]
-        initial_uri = zoom_rasters_json[lid].get(DEFAULT_INITIAL_FILTER, {}).get(DEFAULT_INITIAL_ZOOM_TIER) or TRANSPARENT_PIXEL_URI
+        initial_uri = (
+            zoom_rasters_json[lid]
+            .get(DEFAULT_INITIAL_FILTER, {})
+            .get(DEFAULT_INITIAL_ZOOM_TIER)
+            or TRANSPARENT_PIXEL_URI
+        )
         fg = folium.FeatureGroup(name=cfg["name"], show=cfg["show"])
-        io = ImageOverlay(image=initial_uri, bounds=bounds, opacity=0.94, interactive=False)
+        io = ImageOverlay(
+            image=initial_uri, bounds=bounds, opacity=0.94, interactive=False
+        )
         io.add_to(fg)
         fg.add_to(m)
         overlay_var_names[lid] = io.get_name()
 
     # 4. Metadata Calculations
-    t_min = int(df['timestamp'].min()) if ('timestamp' in df.columns and not df.empty) else 0
-    t_max = int(df['timestamp'].max()) if ('timestamp' in df.columns and not df.empty) else 0
-    start_str = datetime.fromtimestamp(t_min, tz=UTC).strftime("%Y-%m-%d %H:%M UTC") if t_min else "N/A"
-    end_str = datetime.fromtimestamp(t_max, tz=UTC).strftime("%Y-%m-%d %H:%M UTC") if t_max else "N/A"
+    t_min = (
+        int(df["timestamp"].min())
+        if ("timestamp" in df.columns and not df.empty)
+        else 0
+    )
+    t_max = (
+        int(df["timestamp"].max())
+        if ("timestamp" in df.columns and not df.empty)
+        else 0
+    )
+    start_str = (
+        datetime.fromtimestamp(t_min, tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+        if t_min
+        else "N/A"
+    )
+    end_str = (
+        datetime.fromtimestamp(t_max, tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
+        if t_max
+        else "N/A"
+    )
     span_hrs = (t_max - t_min) / 3600.0 if (t_max and t_min) else 0.0
 
     map_var_name = m.get_name()
@@ -718,13 +814,26 @@ def build_public_density_map(
 
     m.get_root().html.add_child(folium.Element(ui_and_zoom_script))
 
-    Fullscreen(position='topright', title='Toggle Fullscreen', title_cancel='Exit Fullscreen', force_separate_button=True).add_to(m)
-    MousePosition(position='bottomleft', separator=' | Lat: ', empty_string='NaN', lng_first=False, prefix='Coordinates: Lon ').add_to(m)
-    folium.LayerControl(position='topright', collapsed=False).add_to(m)
+    Fullscreen(
+        position="topright",
+        title="Toggle Fullscreen",
+        title_cancel="Exit Fullscreen",
+        force_separate_button=True,
+    ).add_to(m)
+    MousePosition(
+        position="bottomleft",
+        separator=" | Lat: ",
+        empty_string="NaN",
+        lng_first=False,
+        prefix="Coordinates: Lon ",
+    ).add_to(m)
+    folium.LayerControl(position="topright", collapsed=False).add_to(m)
 
     m.save(output_html_path)
     file_size_kb = os.path.getsize(output_html_path) / 1024.0
-    print(f"💾 Multi-Filter Density Heatmap exported to: {output_html_path} ({file_size_kb:.1f} KB / {file_size_kb/1024.0:.2f} MB)")
+    print(
+        f"💾 Multi-Filter Density Heatmap exported to: {output_html_path} ({file_size_kb:.1f} KB / {file_size_kb / 1024.0:.2f} MB)"
+    )
     if loaded_from_file:
         del df
         gc.collect()
@@ -739,20 +848,31 @@ if __name__ == "__main__":
         sys.exit(f"❌ Input parquet file not found: {parquet_path}")
 
     print(f"📂 Loading trajectory points from: {parquet_path}")
-    desired_cols = ['latitude', 'longitude', 'altitude_tier', 'ground_noise_dba', 'aircraft_type_group', 'timestamp']
+    desired_cols = [
+        "latitude",
+        "longitude",
+        "altitude_tier",
+        "ground_noise_dba",
+        "aircraft_type_group",
+        "timestamp",
+    ]
     try:
         df_data = pd.read_parquet(parquet_path, columns=desired_cols)
-    except Exception:
+    except Exception:  # noqa: BLE001
         df_data = pd.read_parquet(parquet_path)
-    if 'latitude' in df_data.columns:
-        df_data['latitude'] = df_data['latitude'].astype(np.float32)
-    if 'longitude' in df_data.columns:
-        df_data['longitude'] = df_data['longitude'].astype(np.float32)
-    if 'altitude_tier' in df_data.columns:
-        df_data['altitude_tier'] = df_data['altitude_tier'].astype('category')
-    if 'aircraft_type_group' in df_data.columns:
-        df_data['aircraft_type_group'] = df_data['aircraft_type_group'].astype('category')
-    print(f"📊 Loaded {len(df_data):,} records ({df_data.memory_usage(deep=True).sum()/1024/1024:.2f} MB in RAM)")
+    if "latitude" in df_data.columns:
+        df_data["latitude"] = df_data["latitude"].astype(np.float32)
+    if "longitude" in df_data.columns:
+        df_data["longitude"] = df_data["longitude"].astype(np.float32)
+    if "altitude_tier" in df_data.columns:
+        df_data["altitude_tier"] = df_data["altitude_tier"].astype("category")
+    if "aircraft_type_group" in df_data.columns:
+        df_data["aircraft_type_group"] = df_data["aircraft_type_group"].astype(
+            "category"
+        )
+    print(
+        f"📊 Loaded {len(df_data):,} records ({df_data.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB in RAM)"
+    )
 
     build_public_density_map(
         df=df_data,
@@ -760,6 +880,6 @@ if __name__ == "__main__":
         lat_max=DEFAULT_LAT_MAX,
         lon_min=DEFAULT_LON_MIN,
         lon_max=DEFAULT_LON_MAX,
-        output_html_path=output_path
+        output_html_path=output_path,
     )
     print("🎉 Done! Successfully generated multi-filter density map.")
