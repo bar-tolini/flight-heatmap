@@ -2,6 +2,8 @@
 
 A high-performance pipeline for fetching, caching, interpolating, and visualizing flight trajectories from the [OpenSky Network](https://opensky-network.org/).
 
+🌐 **Live Demo**: [OpenSky Flight Density Map on GitHub Pages](https://bar-tolini.github.io/flight-heatmap/)
+
 > [!NOTE]
 > **Primary Component**: The **Google Colab / Jupyter Notebook** ([`opensky_flight_heatmap.ipynb`](./opensky_flight_heatmap.ipynb)) is the **main part of this project**. It contains the comprehensive, end-to-end analytical pipeline with trajectory interpolation, physics-based acoustic ground noise calculations (ECAC Doc 29 / FAA AEDT), interactive time window sliders, and multi-criteria aircraft filtering.
 >
