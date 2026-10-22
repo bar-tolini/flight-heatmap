@@ -13,23 +13,22 @@ multi-criteria logical AND filtering:
 and zero aircraft identifiers exposed in the client-side HTML.
 """
 
-import os
-import io
-import sys
-import gc
-import json
 import base64
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, Tuple, List, Union
-
-import numpy as np
-import pandas as pd
-from PIL import Image, ImageFilter
-import matplotlib.colors as mcolors
+import gc
+import io
+import json
+import os
+import sys
+from datetime import UTC, datetime
+from typing import Any
 
 import folium
+import matplotlib.colors as mcolors
+import numpy as np
+import pandas as pd
 from folium.plugins import Fullscreen, MousePosition
 from folium.raster_layers import ImageOverlay
+from PIL import Image, ImageFilter
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_PARQUET = os.path.join(SCRIPT_DIR, "processed_flight_paths.parquet")
@@ -69,13 +68,13 @@ TRANSPARENT_PIXEL_URI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABC
 def render_single_zoom_raster(
     pts_lat: np.ndarray,
     pts_lon: np.ndarray,
-    weights: Optional[np.ndarray],
+    weights: np.ndarray | None,
     lat_min: float,
     lat_max: float,
     lon_min: float,
     lon_max: float,
     lut_256: np.ndarray,
-    zoom_cfg: Dict[str, Any]
+    zoom_cfg: dict[str, Any]
 ) -> str:
     """
     Renders an ultra-strong, vibrant RGBA PNG raster for a specific zoom level.
@@ -146,12 +145,12 @@ def render_single_zoom_raster(
 
 
 def build_public_density_map(
-    df: Union[pd.DataFrame, str],
+    df: pd.DataFrame | str,
     lat_min: float = DEFAULT_LAT_MIN,
     lat_max: float = DEFAULT_LAT_MAX,
     lon_min: float = DEFAULT_LON_MIN,
     lon_max: float = DEFAULT_LON_MAX,
-    region_name: Optional[str] = None,
+    region_name: str | None = None,
     output_html_path: str = DEFAULT_OUTPUT_HTML
 ) -> folium.Map:
     """
@@ -274,65 +273,65 @@ def build_public_density_map(
             "key": "0 - 500m (Red)",
             "name": "🔴 0 – 500 m (Surface / Climb)",
             "colors": ["#fca5a5", "#f87171", "#ef4444", "#dc2626", "#800000"],
-            "show": True
+            "show": False
         },
         {
             "id": "tier_orange",
             "key": "500 - 1000m (Orange)",
             "name": "🟧 500 – 1,000 m (Low Approach / Climb)",
             "colors": ["#fed7aa", "#fb923c", "#f97316", "#ea580c", "#a63000"],
-            "show": True
+            "show": False
         },
         {
             "id": "tier_amber",
             "key": "1000 - 2000m (Amber)",
             "name": "🟠 1,000 – 2,000 m (Lower TMA)",
             "colors": ["#fef08a", "#facc15", "#eab308", "#d97706", "#9a3412"],
-            "show": True
+            "show": False
         },
         {
             "id": "tier_yellow",
             "key": "2000 - 3000m (Yellow)",
             "name": "🟡 2,000 – 3,000 m (Intermediate TMA)",
             "colors": ["#fef9c3", "#fde047", "#eab308", "#ca8a04", "#854d0e"],
-            "show": True
+            "show": False
         },
         {
             "id": "tier_teal",
             "key": "3000 - 5000m (Teal)",
             "name": "🩵 3,000 – 5,000 m (Transitions)",
             "colors": ["#a5f3fc", "#5eead4", "#14b8a6", "#0d9488", "#115e59"],
-            "show": True
+            "show": False
         },
         {
             "id": "tier_green",
             "key": "5000m+ (Green)",
             "name": "🟢 5,000+ m (Cruising Airways)",
             "colors": ["#bbf7d0", "#86efac", "#22c55e", "#16a34a", "#087f5b"],
-            "show": True
+            "show": False
         },
         {
             "id": "tier_combined",
             "key": None,  # All altitudes combined
             "name": "🔥 All-Altitudes Combined Density",
             "colors": ['#bfdbfe', '#38bdf8', '#34d399', '#fbbf24', '#f97316', '#ef4444'],
-            "show": False
+            "show": True
         }
     ]
 
     bounds = [[lat_min, lon_min], [lat_max, lon_max]]
 
     # Precompute 256-color LUTs for each layer
-    luts: Dict[str, np.ndarray] = {}
+    luts: dict[str, np.ndarray] = {}
     for cfg in tiers_config:
         cmap = mcolors.LinearSegmentedColormap.from_list(cfg["id"], cfg["colors"])
         luts[cfg["id"]] = (cmap(np.linspace(0, 1, 256)) * 255.0).astype(np.uint8)
 
     # Multi-dimensional rasters store:
     # zoom_rasters_json[layer_id][f"{noise_id}_{aircraft_group}"][zoom_tier] = b64_png_uri
-    zoom_rasters_json: Dict[str, Dict[str, Dict[str, str]]] = {cfg["id"]: {} for cfg in tiers_config}
-    filter_counts_json: Dict[str, int] = {}
-    overlay_var_names: Dict[str, str] = {}
+    zoom_rasters_json: dict[str, dict[str, dict[str, str]]] = {cfg["id"]: {} for cfg in tiers_config}
+    filter_counts_json: dict[str, int] = {}
+    overlay_var_names: dict[str, str] = {}
 
     print("🎨 Generating multi-filter logical AND density rasters...")
     print(f"  • Noise options : {[c['id'] for c in NOISE_CONFIGS]}")
@@ -376,7 +375,7 @@ def build_public_density_map(
                     lats = tier_pts['latitude'].to_numpy(dtype=np.float32, copy=False)
                     lons = tier_pts['longitude'].to_numpy(dtype=np.float32, copy=False)
 
-                    tier_zoom_dict: Dict[str, str] = {}
+                    tier_zoom_dict: dict[str, str] = {}
                     for ztier_name, z_cfg in ZOOM_TIERS.items():
                         uri = render_single_zoom_raster(
                             lats, lons, None,
@@ -406,8 +405,8 @@ def build_public_density_map(
     # 4. Metadata Calculations
     t_min = int(df['timestamp'].min()) if ('timestamp' in df.columns and not df.empty) else 0
     t_max = int(df['timestamp'].max()) if ('timestamp' in df.columns and not df.empty) else 0
-    start_str = datetime.fromtimestamp(t_min, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC") if t_min else "N/A"
-    end_str = datetime.fromtimestamp(t_max, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC") if t_max else "N/A"
+    start_str = datetime.fromtimestamp(t_min, tz=UTC).strftime("%Y-%m-%d %H:%M UTC") if t_min else "N/A"
+    end_str = datetime.fromtimestamp(t_max, tz=UTC).strftime("%Y-%m-%d %H:%M UTC") if t_max else "N/A"
     span_hrs = (t_max - t_min) / 3600.0 if (t_max and t_min) else 0.0
 
     map_var_name = m.get_name()
@@ -602,6 +601,13 @@ def build_public_density_map(
         <div style="display: flex; align-items: center; margin-bottom: 7px; font-size: 11px;">
             <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #38d9a9; margin-right: 8px; box-shadow: 0 0 6px rgba(56,217,169,0.6);"></span>
             <span>🟢 <strong>5,000+ m</strong> (Cruising Airways)</span>
+        </div>
+        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #334155; font-size: 11px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px;">
+                <span>🔥 <strong>Combined Density:</strong></span>
+                <span style="font-size: 9px; color: #94a3b8;">Low &rarr; High</span>
+            </div>
+            <div style="height: 6px; border-radius: 3px; background: linear-gradient(to right, #bfdbfe, #38bdf8, #34d399, #fbbf24, #f97316, #ef4444); box-shadow: 0 0 4px rgba(249,115,22,0.4);"></div>
         </div>
         <div style="font-size: 9px; color: #64748b; border-top: 1px solid #334155; padding-top: 5px; line-height: 1.3;">
             🔍 <strong>Multi-Zoom Adaptive Raster</strong><br>
